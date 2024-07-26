@@ -33,8 +33,8 @@ def is_text_file(file_name):
     text_file_extensions = ['.txt', '.py', '.html', '.css', '.js', '.md', '.json', '.xml', '.yml', '.ini', '.cfg', '.conf']
     return any(file_name.endswith(ext) for ext in text_file_extensions)
 
-def collect_files(start_path, ignore_rules):
-    """Recursively collect all files and directories, respecting .gitignore rules."""
+def collect_files(start_path, ignore_rules, output_filename):
+    """Recursively collect all files and directories, respecting .gitignore rules and ignoring the output file."""
     project_structure = {}
     non_text_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.svg', '.log', '.webp', '.ai', '.ttf', '.woff', '.woff2', '.eot']
 
@@ -44,6 +44,9 @@ def collect_files(start_path, ignore_rules):
         for file_name in files:
             full_file_path = os.path.join(root, file_name)
             relative_file_path = os.path.relpath(full_file_path, start_path)
+            # Skip the output file specifically
+            if relative_file_path == output_filename:
+                continue
             if not should_ignore(relative_file_path, ignore_rules):
                 file_extension = os.path.splitext(file_name)[1].lower()
                 if file_extension in non_text_extensions or file_name.lower() == 'get-pip.py':
@@ -64,21 +67,23 @@ def collect_files(start_path, ignore_rules):
 
     return project_structure
 
+
 def save_structure(structure, output_path):
     """Save the collected file structure to a file."""
     with open(output_path, 'w', encoding='utf-8') as file:
         for path, files in structure.items():
-            file.write(f"Directory: {path}\n")
+            file.write(f"{10*'#'} Directory: {path} {10*'#'}\n")
             for file_name, content in files:
-                file.write(f"  File: {file_name}\n")
+                file.write(f"{10*'-'} File: {file_name} {10*'-'}\n")
                 file.write(f"{content}\n\n")
 
 def main():
     project_root = '.'  # Current directory, change if necessary
+    output_file = 'project_structure.txt'  # Define the output filename
     gitignore_rules = load_gitignore_rules('.gitignore')
-    project_structure = collect_files(project_root, gitignore_rules)
-    save_structure(project_structure, 'project_structure.txt')
-    print('Project structure has been saved to project_structure.txt')
+    project_structure = collect_files(project_root, gitignore_rules, output_file)
+    save_structure(project_structure, output_file)
+    print('Project structure has been saved to', output_file)
 
 if __name__ == '__main__':
     main()
