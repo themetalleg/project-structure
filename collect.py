@@ -11,71 +11,58 @@ def load_gitignore_rules(gitignore_path):
                 # Skip empty lines and comments
                 if stripped_line and not stripped_line.startswith('#'):
                     rules.append(stripped_line)
+    
+    rules.append(".git/")  # Ensure .git directory is ignored
     return rules
 
 def should_ignore(path, ignore_rules):
     """Determine if the path should be ignored based on the .gitignore rules."""
+    path = path.replace(os.sep, '/')  # Normalize path for cross-platform compatibility
     for rule in ignore_rules:
-        # Check if rule applies to directories
         if rule.endswith('/'):
-            directory = rule.rstrip('/')
-            if directory in path.split(os.sep):
+            rule = rule.rstrip('/')
+            # Check entire path for presence of ignored directory
+            if any(rule == part for part in path.split('/')):
                 return True
-        elif fnmatch.fnmatch(path, rule):  # This line should be changed.
+        elif fnmatch.fnmatch(path, rule):
             return True
     return False
-
 
 def is_text_file(file_name):
     """Check if a file is likely to be a text file based on its extension."""
     text_file_extensions = ['.txt', '.py', '.html', '.css', '.js', '.md', '.json', '.xml', '.yml', '.ini', '.cfg', '.conf']
     return any(file_name.endswith(ext) for ext in text_file_extensions)
 
-
 def collect_files(start_path, ignore_rules):
     """Recursively collect all files and directories, respecting .gitignore rules."""
     project_structure = {}
-    # Ensure this list is lowercase for case-insensitive comparison
     non_text_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.svg', '.log', '.webp', '.ai', '.ttf', '.woff', '.woff2', '.eot']
 
     for root, dirs, files in os.walk(start_path):
-        relative_root = os.path.relpath(root, start_path)
-
-        # Check if current directory should be ignored
-        if should_ignore(relative_root, ignore_rules):
-            dirs[:] = []  # Don't walk into ignored directories
-            continue
+        dirs[:] = [d for d in dirs if not should_ignore(os.path.join(root, d), ignore_rules)]  # Filter directories right away
 
         for file_name in files:
-            full_file_path = os.path.join(root, file_name)  # Full path
-            relative_file_path = os.path.join(relative_root, file_name)  # Relative path from project root
+            full_file_path = os.path.join(root, file_name)
+            relative_file_path = os.path.relpath(full_file_path, start_path)
             if not should_ignore(relative_file_path, ignore_rules):
-                # Make comparison case-insensitive and ensure it starts with a dot
                 file_extension = os.path.splitext(file_name)[1].lower()
-
-                # Check if the file is a non-text file or the 'get-pip.py' file
                 if file_extension in non_text_extensions or file_name.lower() == 'get-pip.py':
-                    if relative_root not in project_structure:
-                        project_structure[relative_root] = []
-                    project_structure[relative_root].append((full_file_path, "Content ignored due to file type or rules"))
+                    if root not in project_structure:
+                        project_structure[root] = []
+                    project_structure[root].append((full_file_path, "Content ignored due to file type or rules"))
                 else:
-                    # It's considered a text file, so read and add its content
                     try:
                         with open(full_file_path, 'r', encoding='utf-8', errors='ignore') as file:
                             content = file.read()
-                        if relative_root not in project_structure:
-                            project_structure[relative_root] = []
-                        project_structure[relative_root].append((full_file_path, content))
+                        if root not in project_structure:
+                            project_structure[root] = []
+                        project_structure[root].append((full_file_path, content))
                     except UnicodeDecodeError:
-                        # Handle unexpected binary files that don't decode properly
-                        if relative_root not in project_structure:
-                            project_structure[relative_root] = []
-                        project_structure[relative_root].append((full_file_path, "Content ignored due to decoding error"))
+                        if root not in project_structure:
+                            project_structure[root] = []
+                        project_structure[root].append((full_file_path, "Content ignored due to decoding error"))
 
     return project_structure
-
-
-
 
 def save_structure(structure, output_path):
     """Save the collected file structure to a file."""
