@@ -3,18 +3,19 @@ import pathspec
 
 def load_gitignore(gitignore_path):
     """Load the .gitignore file and return a pathspec matcher."""
-    with open(gitignore_path, 'r') as f:
+    with open(gitignore_path, 'r', encoding='utf-8', errors='ignore') as f:
         gitignore_content = f.read()
     return pathspec.PathSpec.from_lines('gitwildmatch', gitignore_content.splitlines())
 
 def is_binary_file(filepath):
     """Check if the file is a binary file by looking at its extension."""
     binary_extensions = (
-        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.ico', # images
-        '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',        # office files
-        '.pdf',                                                   # pdf
-        '.zip', '.tar', '.gz', '.rar', '.7z',                     # archives
-        '.exe', '.dll', '.so', '.dylib'                           # binaries
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.ico', '.svg', # images
+        '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',                # office files
+        '.pdf',                                                           # pdf
+        '.zip', '.tar', '.gz', '.rar', '.7z',                             # archives
+        '.exe', '.dll', '.so', '.dylib',                                  # binaries
+        '.ai'                                                             # adobe files
     )
     return filepath.endswith(binary_extensions)
 
@@ -50,16 +51,18 @@ def collect_files_and_folders(root_dir, gitignore_spec):
     return collected_items
 
 def read_file_contents(filepath):
-    """Read and return the contents of a file."""
+    """Read and return the contents of a file, removing any NUL characters."""
     try:
-        with open(filepath, 'r') as f:
-            return f.read()
+        with open(filepath, 'rb') as f:
+            contents = f.read()
+            contents = contents.replace(b'\x00', b'')  # Remove NUL characters
+            return contents.decode('utf-8', errors='ignore')
     except Exception as e:
         return f"Error reading {filepath}: {e}"
 
 def save_structure_to_file(structure, root_dir, filepath):
     """Save the collected structure and contents to a file."""
-    with open(filepath, 'w') as f:
+    with open(filepath, 'w', encoding='utf-8', errors='ignore') as f:
         for item in structure:
             full_path = os.path.join(root_dir, item)
             if os.path.isdir(full_path):
