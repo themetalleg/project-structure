@@ -62,7 +62,7 @@ def read_file_contents(filepath):
 
 def save_structure_to_file(structure, root_dir, filepath):
     """Save the collected structure and contents to a file."""
-    with open(filepath, 'w', encoding='utf-8', errors='ignore') as f:
+    with open(filepath, 'w', encoding='utf-8', errors='ignore', newline='\n') as f:
         for item in structure:
             full_path = os.path.join(root_dir, item)
             if os.path.isdir(full_path):
